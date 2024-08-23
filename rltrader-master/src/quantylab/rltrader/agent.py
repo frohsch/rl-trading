@@ -73,17 +73,7 @@ class Agent:
         )
 
     def update_correlation_coefficient(self, price_data):
-
-        # if len(price_data) < 2:
-        #     return  # Not enough data to calculate correlation
-        
-        # # For simplicity, we compute the correlation of price changes with itself (auto-correlation)
-        # price_changes = np.diff(price_data)  # Calculate price changes
-        # if len(price_changes) > 1:
-        #     self.correlation_coefficient = np.corrcoef(price_changes[:-1], price_changes[1:])[0, 1]
-        # else:
-        #     self.correlation_coefficient = 0.0
-        self.correlation_coefficient = self.environment.get_price()
+        self.correlation_coefficient = self.environment.get_correlation()
 
     def decide_action(self, pred_value, pred_policy, epsilon):
         confidence = 0.

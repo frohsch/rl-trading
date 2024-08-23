@@ -3,6 +3,7 @@ import abc
 import numpy as np
 
 import torch
+import torch.nn.functional as F
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -81,6 +82,30 @@ class Network:
             _loss.backward()
             self.optimizer.step()
             loss += _loss.item()
+        return loss
+
+    def train_on_batch_for_ppo(self, x, y, a, eps, K):
+        if self.num_steps > 1:
+            x = np.array(x).reshape((-1, self.num_steps, self.input_dim))
+        else:
+            x = np.array(x).reshape((-1, self.input_dim))
+        loss = 0.
+        with self.lock:
+            self.model.train()
+            _x = torch.from_numpy(x).float().to(device)
+            _y = torch.from_numpy(y).float().to(device)
+            probs = F.softmax(_y, dim=1)
+            for _ in range(K):
+                y_pred = self.model(_x)
+                probs_pred = F.softmax(y_pred, dim=1)
+                rto = torch.exp(torch.log(probs[:, a]) - torch.log(probs_pred[:, a]))
+                rto_adv = rto * _y[:, a]
+                clp_adv = torch.clamp(rto, 1 - eps, 1 + eps) * _y[:, a]
+                _loss = -torch.min(rto_adv, clp_adv).mean()
+                self.optimizer.zero_grad()
+                _loss.backward()
+                self.optimizer.step()
+                loss += _loss.item()
         return loss
 
     @classmethod

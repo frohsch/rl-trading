@@ -1,5 +1,5 @@
 class Environment:
-    PRICE_IDX = 7  # 종가의 위치
+    PRICE_IDX = 4  # 종가의 위치
     CORRELATION_IDX = 95
 
     def __init__(self, chart_data=None):

@@ -30,6 +30,7 @@ class ReinforcementLearner:
                 discount_factor=0.9, num_epoches=1000,
                 balance=100000000, start_epsilon=1,
                 value_network=None, policy_network=None,
+                value_network_activation='linear', policy_network_activation='sigmoid',
                 output_path='', reuse_models=True, gen_output=True):
         # 인자 확인
         assert min_trading_price > 0
@@ -63,6 +64,8 @@ class ReinforcementLearner:
         self.value_network = value_network
         self.policy_network = policy_network
         self.reuse_models = reuse_models
+        self.value_network_activation = value_network_activation
+        self.policy_network_activation = policy_network_activation
         # 가시화 모듈
         self.visualizer = Visualizer()
         # 메모리
@@ -601,24 +604,51 @@ class DDPGLearner(ReinforcementLearner):
             value_max_next = value.max()
         return x, y_value, y_policy
 
-    # def get_batch(self):
-    #     """Prepare the batch data for training the actor and critic."""
-    #     memory = zip(
-    #         reversed(self.memory_sample),
-    #         reversed(self.memory_action),
-    #         reversed(self.memory_reward),
-    #     )
-
-    #     x = np.zeros((len(self.memory_sample), self.num_steps, self.num_features))
-    #     y_actor = np.zeros((len(self.memory_sample), self.agent.NUM_ACTIONS))
-    #     y_critic = np.zeros((len(self.memory_sample), 1))
-    #     next_value = 0
-
-    #     for i, (sample, action, reward) in enumerate(memory):
-    #         x[i] = sample
-    #         y_actor[i, action] = reward + self.discount_factor * next_value
-    #         y_critic[i] = reward + self.discount_factor * next_value
-    #         next_value = y_critic[i]
-
-    #     return x, y_actor, y_critic
-
+class PPOLearner(A2CLearner):
+    def __init__(self, *args, lmb=0.95, eps=0.1, K=3, **kwargs):
+        kwargs['value_network_activation'] = 'tanh'
+        kwargs['policy_network_activation'] = 'tanh'
+        super().__init__(*args, **kwargs)
+        self.lmb = lmb
+        self.eps = eps
+        self.K = K
+        
+    def get_batch(self):
+        memory = zip(
+            reversed(self.memory_sample),
+            reversed(self.memory_action),
+            reversed(self.memory_value),
+            reversed(self.memory_policy),
+            reversed(self.memory_reward),
+        )
+        x = np.zeros((len(self.memory_sample), self.num_steps, self.num_features))
+        y_value = np.zeros((len(self.memory_sample), self.agent.NUM_ACTIONS))
+        y_policy = np.zeros((len(self.memory_sample), self.agent.NUM_ACTIONS))
+        value_max_next = 0
+        reward_next = self.memory_reward[-1]
+        for i, (sample, action, value, policy, reward) in enumerate(memory):
+            x[i] = sample
+            # r = reward_next - reward
+            # reward_next = reward
+            y_value[i, :] = value
+            y_value[i, action] = np.tanh(reward + self.discount_factor * value_max_next)
+            advantage = y_value[i, action] - y_value[i].mean()
+            y_policy[i, :] = policy
+            y_policy[i, action] = advantage
+            value_max_next = value.max()
+        return x, y_value, y_policy
+    
+    def fit(self):
+        # 배치 학습 데이터 생성
+        x, y_value, y_policy = self.get_batch()
+        # 손실 초기화
+        self.loss = None
+        if len(x) > 0:
+            loss = 0
+            if y_value is not None:
+                # 가치 신경망 갱신
+                loss += self.value_network.train_on_batch(x, y_value)
+            if y_policy is not None:
+                # 정책 신경망 갱신
+                loss += self.policy_network.train_on_batch_for_ppo(x, y_policy, list(reversed(self.memory_action)), self.eps, self.K)
+            self.loss = loss
