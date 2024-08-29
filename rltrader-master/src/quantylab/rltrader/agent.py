@@ -74,6 +74,7 @@ class Agent:
 
     def update_correlation_coefficient(self, price_data):
         self.correlation_coefficient = self.environment.get_correlation()
+        # print(self.correlation_coefficient)
 
     def decide_action(self, pred_value, pred_policy, epsilon):
         confidence = 0.
@@ -90,25 +91,23 @@ class Agent:
                 epsilon = 1
 
         # Adjust epsilon based on correlation coefficient
-        if self.correlation_coefficient > 0.5:
-            epsilon *= 0.5  # Increase exploitation (reduce exploration) if correlation is strong
+        self.correlation_coefficient = self.environment.get_correlation()
+        if self.correlation_coefficient > 0.7:
+            epsilon = 0.99  # Increase exploitation (reduce exploration) if correlation is strong
         else:
             epsilon = 1  # Favor holding (more exploration) if correlation is weak
 
-        # Exploration decision
+        # 탐험 결정
         if np.random.rand() < epsilon:
             exploration = True
             action = np.random.randint(self.NUM_ACTIONS)
         else:
             exploration = False
-            if self.correlation_coefficient > 0.5:
-                # If correlation is high, prioritize either buy or sell (randomly choose one)
-                action = np.random.choice([self.ACTION_BUY, self.ACTION_SELL])
-            else:
-                # Use the predicted policy
-                action = np.argmax(pred)
+            action = np.argmax(pred)
+        
 
         confidence = 0.5
+        
         if pred_policy is not None:
             confidence = pred[action]
         elif pred_value is not None:
@@ -137,6 +136,66 @@ class Agent:
         return max(int(trading_price / self.environment.get_price()), 1)
 
 
+    # def act(self, action, confidence):
+    #     if not self.validate_action(action):
+    #         action = Agent.ACTION_HOLD
+
+    #     # 환경에서 현재 가격 얻기
+    #     curr_price = self.environment.get_price()
+
+    #     # 매수
+    #     if action == Agent.ACTION_BUY:
+    #         # 매수할 단위를 판단
+    #         trading_unit = self.decide_trading_unit(confidence)
+    #         balance = (
+    #             self.balance - curr_price *
+    #             (1 + self.TRADING_CHARGE) * trading_unit
+    #         )
+    #         # 보유 현금이 모자랄 경우 보유 현금으로 가능한 만큼 최대한 매수
+    #         if balance < 0:
+    #             trading_unit = min(
+    #                 int(self.balance / (curr_price * (1 + self.TRADING_CHARGE))),
+    #                 int(self.max_trading_price / curr_price)
+    #             )
+    #         # 수수료를 적용하여 총 매수 금액 산정
+    #         invest_amount = curr_price * (1 + self.TRADING_CHARGE) * trading_unit
+    #         if invest_amount > 0:
+    #             self.avg_buy_price = \
+    #                 (self.avg_buy_price * self.num_stocks + curr_price * trading_unit) \
+    #                     / (self.num_stocks + trading_unit)  # 주당 매수 단가 갱신
+    #             self.balance -= invest_amount  # 보유 현금을 갱신
+    #             self.num_stocks += trading_unit  # 보유 주식 수를 갱신
+    #             self.num_buy += 1  # 매수 횟수 증가
+
+    #     # 매도
+    #     elif action == Agent.ACTION_SELL:
+    #         # 매도할 단위를 판단
+    #         trading_unit = self.decide_trading_unit(confidence)
+    #         # 보유 주식이 모자랄 경우 가능한 만큼 최대한 매도
+    #         trading_unit = min(trading_unit, self.num_stocks)
+    #         # 매도
+    #         invest_amount = curr_price * (
+    #             1 - (self.TRADING_TAX + self.TRADING_CHARGE)) * trading_unit
+    #         if invest_amount > 0:
+    #             # 주당 매수 단가 갱신
+    #             self.avg_buy_price = \
+    #                 (self.avg_buy_price * self.num_stocks - curr_price * trading_unit) \
+    #                     / (self.num_stocks - trading_unit) \
+    #                         if self.num_stocks > trading_unit else 0
+    #             self.num_stocks -= trading_unit  # 보유 주식 수를 갱신
+    #             self.balance += invest_amount  # 보유 현금을 갱신
+    #             self.num_sell += 1  # 매도 횟수 증가
+
+    #     # 관망
+    #     elif action == Agent.ACTION_HOLD:
+    #         self.num_hold += 1  # 관망 횟수 증가
+
+    #     # 포트폴리오 가치 갱신
+    #     self.portfolio_value = self.balance + curr_price * self.num_stocks
+    #     self.profitloss = self.portfolio_value / self.initial_balance - 1
+    #     return self.profitloss
+    #             # )*((self.num_buy + self.num_sell)*(-1) + self.num_hold * 1)
+        
     def act(self, action, confidence):
         if not self.validate_action(action):
             action = Agent.ACTION_HOLD
@@ -174,7 +233,7 @@ class Agent:
             trading_unit = self.decide_trading_unit(confidence)
             # 보유 주식이 모자랄 경우 가능한 만큼 최대한 매도
             trading_unit = min(trading_unit, self.num_stocks)
-            # 매도
+         # 매도
             invest_amount = curr_price * (
                 1 - (self.TRADING_TAX + self.TRADING_CHARGE)) * trading_unit
             if invest_amount > 0:
@@ -194,4 +253,9 @@ class Agent:
         # 포트폴리오 가치 갱신
         self.portfolio_value = self.balance + curr_price * self.num_stocks
         self.profitloss = self.portfolio_value / self.initial_balance - 1
+
+        # Adjust profit/loss considering excessive trading
+        trade_penalty = (self.num_buy + self.num_sell) * 0.001
+        self.profitloss -= trade_penalty  # 매매 패널티 적용
+
         return self.profitloss

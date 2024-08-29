@@ -1,6 +1,6 @@
 class Environment:
     PRICE_IDX = 4  # 종가의 위치
-    CORRELATION_IDX = 95
+    CORRELATION_IDX = -1
 
     def __init__(self, chart_data=None):
         self.chart_data = chart_data
@@ -20,7 +20,8 @@ class Environment:
 
     def get_price(self):
         if self.observation is not None:
-            return self.observation[self.PRICE_IDX]
+            # return self.observation[self.PRICE_IDX]
+            return self.observation.iloc[self.PRICE_IDX]
         return None
     
     def get_correlation(self):

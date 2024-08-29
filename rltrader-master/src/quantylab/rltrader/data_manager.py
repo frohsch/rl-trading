@@ -37,7 +37,7 @@ COLUMNS_TRAINING_DATA_V3 = COLUMNS_TRAINING_DATA_V2 + [
     'ind', 'ind_diff', 'ind_ma5', 'ind_ma10', 'ind_ma20', 'ind_ma60', 'ind_ma120',
     'inst', 'inst_diff', 'inst_ma5', 'inst_ma10', 'inst_ma20', 'inst_ma60', 'inst_ma120',
     'foreign', 'foreign_diff', 'foreign_ma5', 'foreign_ma10', 'foreign_ma20', 
-    'foreign_ma60', 'foreign_ma120',
+    'foreign_ma60', 'foreign_ma120', 'Correlation'
 ]
 COLUMNS_TRAINING_DATA_V3 = list(map(
     lambda x: x if x != 'close_lastclose_ratio' else 'diffratio', COLUMNS_TRAINING_DATA_V3))
@@ -285,7 +285,8 @@ def load_data_v3_v4(code, date_from, date_to, ver):
     df = df.sort_values(by='date').reset_index(drop=True)
 
     # NaN 처리
-    df = df.fillna(method='ffill').fillna(method='bfill').reset_index(drop=True)
+    # df = df.fillna(method='ffill').fillna(method='bfill').reset_index(drop=True)
+    df = df.ffill().bfill().reset_index(drop=True)
     df = df.fillna(0)
 
     # 기간 필터링

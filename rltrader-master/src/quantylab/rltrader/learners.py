@@ -589,12 +589,6 @@ class DDPGLearner(ReinforcementLearner):
 
         for i, (sample, action, value, policy, reward) in enumerate(memory):
             x[i] = sample
-            # r = self.memory_reward[-1] - reward
-            # y_value[i, :] = value
-            # y_value[i, action] = r + self.discount_factor * value_max_next
-            # y_policy[i, :] = policy
-            # y_policy[i, action] = utils.sigmoid(r)
-            # value_max_next = value.max()
             r = reward + self.discount_factor * value_max_next
             y_value[i, :] = value
             y_value[i, action] = r

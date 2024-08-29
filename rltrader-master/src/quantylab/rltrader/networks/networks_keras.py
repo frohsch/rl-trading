@@ -19,8 +19,9 @@ elif os.environ['KERAS_BACKEND'] == 'plaidml.keras.backend':
 
 class Network:
     lock = threading.Lock()
-
-    def __init__(self, input_dim=0, output_dim=0, lr=0.001, 
+    # TODO :- learning rate 조절
+    # def __init__(self, input_dim=0, output_dim=0, lr=0.001, 
+    def __init__(self, input_dim=0, output_dim=0, lr=0.0005, 
                 shared_network=None, activation='sigmoid', loss='mse'):
         self.input_dim = input_dim
         self.output_dim = output_dim
