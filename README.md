@@ -1,1 +1,1 @@
-# reinforcelearning-trading
+# reinforcementlearning-trading
